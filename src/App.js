@@ -4,16 +4,17 @@ import axios from 'axios';
 const axiosGitHubGraphQL = axios.create({
   baseURL: 'https://api.github.com/graphql',
   headers: {
-    Authorization: 'bearer GITHUB_ACCESS_TOKEN',
+    Authorization: 'bearer 2c59118794898e97c7894570e8f00f63d1d60322',
   },
 });
 const TITLE = 'React GraphQL GitHub Client';
+
 const GET_ISSUES_OF_REPOSITORY = `
-  {
-    organization(login: "the-road-to-learn-react") {
+  query ($organization: String!, $repository: String!) {
+    organization(login: $organization) {
       name
       url
-      repository(name: "the-road-to-learn-react") {
+      repository(name: $repository) {
         name
         url
         issues(last: 5) {
@@ -30,6 +31,19 @@ const GET_ISSUES_OF_REPOSITORY = `
   }
 `;
 
+const getIssuesOfRepository = path => {
+  const [organization, repository] = path.split('/');
+
+  return axiosGitHubGraphQL.post('', {
+    query: GET_ISSUES_OF_REPOSITORY,
+    variables: { organization, repository },
+  });
+};
+
+const resolveIssuesQuery = queryResult => () => ({
+  organization: queryResult.data.data.organization,
+  errors: queryResult.data.errors,
+});
 
 class App extends Component {
   state = {
@@ -39,7 +53,7 @@ class App extends Component {
   };
 
   componentDidMount() {
-    this.onFetchFromGitHub();
+    this.onFetchFromGitHub(this.state.path);
   }
 
   onChange = event => {
@@ -47,23 +61,18 @@ class App extends Component {
   };
 
   onSubmit = event => {
+    this.onFetchFromGitHub(this.state.path);
     event.preventDefault();
   };
 
-  onFetchFromGitHub = () => {
-    axiosGitHubGraphQL
-      .post('', { query: GET_ISSUES_OF_REPOSITORY })
-      .then(result => 
-        this.setState(() => ({
-          organization: result.data.data.organization,
-          errors: result.data.errors,
-        })),
-      );
+  onFetchFromGitHub = path => {
+    getIssuesOfRepository(path).then(queryResult =>
+      this.setState(resolveIssuesQuery(queryResult)),
+    );
   };
 
   render() {
     const { path, organization, errors } = this.state;
-    console.log(organization)
     return (
       <div>
         <h1>{TITLE}</h1>
